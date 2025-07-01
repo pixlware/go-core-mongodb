@@ -5,11 +5,14 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type ODM[T any] struct {
 	Collection *mongo.Collection
 	CreateOne  func(props T) (*mongo.InsertOneResult, error)
+	CreateMany func(props []T) (*mongo.InsertManyResult, error)
+	BulkWrite  func(models []mongo.WriteModel) (*mongo.BulkWriteResult, error)
 	FindOne    func(filter bson.M) (*T, error)
 	FindMany   func(filter bson.M) ([]T, error)
 	FindById   func(id string) (*T, error)
@@ -26,6 +29,8 @@ func NewODM[T any](collection *mongo.Collection) *ODM[T] {
 	return &ODM[T]{
 		Collection: collection,
 		CreateOne:  createOneGenerator[T](collection),
+		CreateMany: createManyGenerator[T](collection),
+		BulkWrite:  bulkWriteGenerator[T](collection),
 		FindOne:    findOneGenerator[T](collection),
 		FindMany:   findManyGenerator[T](collection),
 		FindById:   findByIdGenerator[T](collection),
@@ -42,6 +47,19 @@ func NewODM[T any](collection *mongo.Collection) *ODM[T] {
 func createOneGenerator[T any](collection *mongo.Collection) func(props T) (*mongo.InsertOneResult, error) {
 	return func(props T) (*mongo.InsertOneResult, error) {
 		return collection.InsertOne(context.Background(), props)
+	}
+}
+
+func createManyGenerator[T any](collection *mongo.Collection) func(props []T) (*mongo.InsertManyResult, error) {
+	return func(props []T) (*mongo.InsertManyResult, error) {
+		return collection.InsertMany(context.Background(), props)
+	}
+}
+
+func bulkWriteGenerator[T any](collection *mongo.Collection) func(models []mongo.WriteModel) (*mongo.BulkWriteResult, error) {
+	return func(models []mongo.WriteModel) (*mongo.BulkWriteResult, error) {
+		bulkOptions := options.BulkWrite().SetOrdered(true)
+		return collection.BulkWrite(context.Background(), models, bulkOptions)
 	}
 }
 
