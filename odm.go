@@ -10,19 +10,19 @@ import (
 
 type ODM[T any] struct {
 	Collection *mongo.Collection
-	CreateOne  func(props T) (*mongo.InsertOneResult, error)
-	CreateMany func(props []T) (*mongo.InsertManyResult, error)
+	CreateOne  func(doc T, opts ...options.Lister[options.InsertOneOptions]) (*mongo.InsertOneResult, error)
+	CreateMany func(docs []T, opts ...options.Lister[options.InsertManyOptions]) (*mongo.InsertManyResult, error)
 	BulkWrite  func(models []mongo.WriteModel) (*mongo.BulkWriteResult, error)
-	FindOne    func(filter bson.M) (*T, error)
-	FindMany   func(filter bson.M) ([]T, error)
-	FindById   func(id string) (*T, error)
-	List       func() ([]T, error)
-	UpdateOne  func(filter bson.M, props bson.M) (*mongo.UpdateResult, error)
-	UpdateMany func(filter bson.M, props bson.M) (*mongo.UpdateResult, error)
-	UpdateById func(id string, props bson.M) (*mongo.UpdateResult, error)
-	DeleteOne  func(filter bson.M) (*mongo.DeleteResult, error)
-	DeleteMany func(filter bson.M) (*mongo.DeleteResult, error)
-	DeleteById func(id string) (*mongo.DeleteResult, error)
+	FindOne    func(filter bson.M, opts ...options.Lister[options.FindOneOptions]) (*T, error)
+	FindMany   func(filter bson.M, opts ...options.Lister[options.FindOptions]) ([]T, error)
+	FindById   func(id string, opts ...options.Lister[options.FindOneOptions]) (*T, error)
+	List       func(opts ...options.Lister[options.FindOptions]) ([]T, error)
+	UpdateOne  func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error)
+	UpdateMany func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateManyOptions]) (*mongo.UpdateResult, error)
+	UpdateById func(id string, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error)
+	DeleteOne  func(filter bson.M, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error)
+	DeleteMany func(filter bson.M, opts ...options.Lister[options.DeleteManyOptions]) (*mongo.DeleteResult, error)
+	DeleteById func(id string, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error)
 }
 
 func NewODM[T any](collection *mongo.Collection) *ODM[T] {
@@ -44,15 +44,15 @@ func NewODM[T any](collection *mongo.Collection) *ODM[T] {
 	}
 }
 
-func createOneGenerator[T any](collection *mongo.Collection) func(props T) (*mongo.InsertOneResult, error) {
-	return func(props T) (*mongo.InsertOneResult, error) {
-		return collection.InsertOne(context.Background(), props)
+func createOneGenerator[T any](collection *mongo.Collection) func(doc T, opts ...options.Lister[options.InsertOneOptions]) (*mongo.InsertOneResult, error) {
+	return func(doc T, opts ...options.Lister[options.InsertOneOptions]) (*mongo.InsertOneResult, error) {
+		return collection.InsertOne(context.Background(), doc, opts...)
 	}
 }
 
-func createManyGenerator[T any](collection *mongo.Collection) func(props []T) (*mongo.InsertManyResult, error) {
-	return func(props []T) (*mongo.InsertManyResult, error) {
-		return collection.InsertMany(context.Background(), props)
+func createManyGenerator[T any](collection *mongo.Collection) func(docs []T, opts ...options.Lister[options.InsertManyOptions]) (*mongo.InsertManyResult, error) {
+	return func(docs []T, opts ...options.Lister[options.InsertManyOptions]) (*mongo.InsertManyResult, error) {
+		return collection.InsertMany(context.Background(), docs, opts...)
 	}
 }
 
@@ -63,10 +63,10 @@ func bulkWriteGenerator[T any](collection *mongo.Collection) func(models []mongo
 	}
 }
 
-func findOneGenerator[T any](collection *mongo.Collection) func(filter bson.M) (*T, error) {
-	return func(filter bson.M) (*T, error) {
+func findOneGenerator[T any](collection *mongo.Collection) func(filter bson.M, opts ...options.Lister[options.FindOneOptions]) (*T, error) {
+	return func(filter bson.M, opts ...options.Lister[options.FindOneOptions]) (*T, error) {
 		var doc T
-		err := collection.FindOne(context.Background(), filter).Decode(&doc)
+		err := collection.FindOne(context.Background(), filter, opts...).Decode(&doc)
 		if err != nil {
 			return nil, err
 		}
@@ -74,9 +74,9 @@ func findOneGenerator[T any](collection *mongo.Collection) func(filter bson.M) (
 	}
 }
 
-func findManyGenerator[T any](collection *mongo.Collection) func(filter bson.M) ([]T, error) {
-	return func(filter bson.M) ([]T, error) {
-		cursor, err := collection.Find(context.Background(), filter)
+func findManyGenerator[T any](collection *mongo.Collection) func(filter bson.M, opts ...options.Lister[options.FindOptions]) ([]T, error) {
+	return func(filter bson.M, opts ...options.Lister[options.FindOptions]) ([]T, error) {
+		cursor, err := collection.Find(context.Background(), filter, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -91,10 +91,10 @@ func findManyGenerator[T any](collection *mongo.Collection) func(filter bson.M) 
 	}
 }
 
-func findByIdGenerator[T any](collection *mongo.Collection) func(id string) (*T, error) {
-	return func(id string) (*T, error) {
+func findByIdGenerator[T any](collection *mongo.Collection) func(id string, opts ...options.Lister[options.FindOneOptions]) (*T, error) {
+	return func(id string, opts ...options.Lister[options.FindOneOptions]) (*T, error) {
 		var doc T
-		err := collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&doc)
+		err := collection.FindOne(context.Background(), bson.M{"_id": id}, opts...).Decode(&doc)
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +102,9 @@ func findByIdGenerator[T any](collection *mongo.Collection) func(id string) (*T,
 	}
 }
 
-func listGenerator[T any](collection *mongo.Collection) func() ([]T, error) {
-	return func() ([]T, error) {
-		cursor, err := collection.Find(context.Background(), bson.M{})
+func listGenerator[T any](collection *mongo.Collection) func(opts ...options.Lister[options.FindOptions]) ([]T, error) {
+	return func(opts ...options.Lister[options.FindOptions]) ([]T, error) {
+		cursor, err := collection.Find(context.Background(), bson.M{}, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -119,38 +119,38 @@ func listGenerator[T any](collection *mongo.Collection) func() ([]T, error) {
 	}
 }
 
-func updateOneGenerator[T any](collection *mongo.Collection) func(filter bson.M, props bson.M) (*mongo.UpdateResult, error) {
-	return func(filter bson.M, props bson.M) (*mongo.UpdateResult, error) {
-		return collection.UpdateOne(context.Background(), filter, props)
+func updateOneGenerator[T any](collection *mongo.Collection) func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error) {
+	return func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error) {
+		return collection.UpdateOne(context.Background(), filter, update, opts...)
 	}
 }
 
-func updateManyGenerator[T any](collection *mongo.Collection) func(filter bson.M, props bson.M) (*mongo.UpdateResult, error) {
-	return func(filter bson.M, props bson.M) (*mongo.UpdateResult, error) {
-		return collection.UpdateMany(context.Background(), filter, props)
+func updateManyGenerator[T any](collection *mongo.Collection) func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateManyOptions]) (*mongo.UpdateResult, error) {
+	return func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateManyOptions]) (*mongo.UpdateResult, error) {
+		return collection.UpdateMany(context.Background(), filter, update, opts...)
 	}
 }
 
-func updateByIdGenerator[T any](collection *mongo.Collection) func(id string, props bson.M) (*mongo.UpdateResult, error) {
-	return func(id string, props bson.M) (*mongo.UpdateResult, error) {
-		return collection.UpdateOne(context.Background(), bson.M{"_id": id}, props)
+func updateByIdGenerator[T any](collection *mongo.Collection) func(id string, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error) {
+	return func(id string, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error) {
+		return collection.UpdateOne(context.Background(), bson.M{"_id": id}, update, opts...)
 	}
 }
 
-func deleteOneGenerator[T any](collection *mongo.Collection) func(filter bson.M) (*mongo.DeleteResult, error) {
-	return func(filter bson.M) (*mongo.DeleteResult, error) {
-		return collection.DeleteOne(context.Background(), filter)
+func deleteOneGenerator[T any](collection *mongo.Collection) func(filter bson.M, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error) {
+	return func(filter bson.M, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error) {
+		return collection.DeleteOne(context.Background(), filter, opts...)
 	}
 }
 
-func deleteManyGenerator[T any](collection *mongo.Collection) func(filter bson.M) (*mongo.DeleteResult, error) {
-	return func(filter bson.M) (*mongo.DeleteResult, error) {
-		return collection.DeleteMany(context.Background(), filter)
+func deleteManyGenerator[T any](collection *mongo.Collection) func(filter bson.M, opts ...options.Lister[options.DeleteManyOptions]) (*mongo.DeleteResult, error) {
+	return func(filter bson.M, opts ...options.Lister[options.DeleteManyOptions]) (*mongo.DeleteResult, error) {
+		return collection.DeleteMany(context.Background(), filter, opts...)
 	}
 }
 
-func deleteByIdGenerator[T any](collection *mongo.Collection) func(id string) (*mongo.DeleteResult, error) {
-	return func(id string) (*mongo.DeleteResult, error) {
-		return collection.DeleteOne(context.Background(), bson.M{"_id": id})
+func deleteByIdGenerator[T any](collection *mongo.Collection) func(id string, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error) {
+	return func(id string, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error) {
+		return collection.DeleteOne(context.Background(), bson.M{"_id": id}, opts...)
 	}
 }
