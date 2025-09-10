@@ -7,16 +7,25 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// GenerateMongoID generates a new MongoDB ObjectID.
+var defaultAlphabets = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 func GenerateMongoID() bson.ObjectID {
 	return bson.NewObjectID()
 }
 
-// GenerateNanoID generates a new NanoID.
 func GenerateNanoID() string {
-	id, err := gonanoid.New()
+	return GenerateNanoIdBySize(21)
+}
+
+func GenerateNanoIdBySize(size int) string {
+	return GenerateCustomNanoID(defaultAlphabets, size)
+}
+
+func GenerateCustomNanoID(alphabets string, size int) string {
+	id, err := gonanoid.Generate(alphabets, size)
 	if err != nil {
-		log.Fatalf("Failed to generate NanoID: %v", err)
+		log.Printf("Error generating NanoID: %v", err)
+		return ""
 	}
 	return id
 }
