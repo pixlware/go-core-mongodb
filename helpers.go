@@ -14,7 +14,7 @@ func GenerateMongoID() bson.ObjectID {
 }
 
 func GenerateNanoID() string {
-	return GenerateNanoIdBySize(21)
+	return GenerateNanoIdBySize(24)
 }
 
 func GenerateNanoIdBySize(size int) string {
