@@ -70,15 +70,11 @@ func init() {
 
 	Config.URI = "mongodb://"
 
-	if Config.Username != "" {
-		Config.URI += Config.Username
+	if Config.Username != "" && Config.Password != "" {
+		Config.URI += Config.Username + ":" + Config.Password + "@"
 	}
 
-	if Config.Password != "" {
-		Config.URI += ":" + Config.Password
-	}
-
-	Config.URI += "@" + Config.Host + ":" + Config.Port + "/" + Config.Database
+	Config.URI += Config.Host + ":" + Config.Port + "/" + Config.Database
 
 	if Config.URIQuery != "" {
 		Config.URI += "?" + Config.URIQuery
