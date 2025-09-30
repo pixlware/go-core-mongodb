@@ -17,6 +17,7 @@ type ODM[T any] struct {
 	FindMany   func(filter bson.M, opts ...options.Lister[options.FindOptions]) ([]T, error)
 	FindById   func(id string, opts ...options.Lister[options.FindOneOptions]) (*T, error)
 	List       func(opts ...options.Lister[options.FindOptions]) ([]T, error)
+	Count      func(filter bson.M, opts ...options.Lister[options.CountOptions]) (int64, error)
 	UpdateOne  func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error)
 	UpdateMany func(filter bson.M, update bson.M, opts ...options.Lister[options.UpdateManyOptions]) (*mongo.UpdateResult, error)
 	UpdateById func(id string, update bson.M, opts ...options.Lister[options.UpdateOneOptions]) (*mongo.UpdateResult, error)
@@ -35,6 +36,7 @@ func NewODM[T any](collection *mongo.Collection) *ODM[T] {
 		FindMany:   findManyGenerator[T](collection),
 		FindById:   findByIdGenerator[T](collection),
 		List:       listGenerator[T](collection),
+		Count:      countGenerator[T](collection),
 		UpdateOne:  updateOneGenerator[T](collection),
 		UpdateMany: updateManyGenerator[T](collection),
 		UpdateById: updateByIdGenerator[T](collection),
@@ -116,6 +118,12 @@ func listGenerator[T any](collection *mongo.Collection) func(opts ...options.Lis
 			return []T{}, nil
 		}
 		return docs, nil
+	}
+}
+
+func countGenerator[T any](collection *mongo.Collection) func(filter bson.M, opts ...options.Lister[options.CountOptions]) (int64, error) {
+	return func(filter bson.M, opts ...options.Lister[options.CountOptions]) (int64, error) {
+		return collection.CountDocuments(context.Background(), filter, opts...)
 	}
 }
 
